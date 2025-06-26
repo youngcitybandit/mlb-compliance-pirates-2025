@@ -233,148 +233,208 @@ export function PiratesPitchersLiveTracker() {
 
   // Check schedule and activate games automatically
   useEffect(() => {
-    const checkSchedule = () => {
-      const todaysGame = getTodaysGame();
-      const nextGame = getNextScheduledGame();
-      
-      if (todaysGame && shouldGameBeActive(todaysGame)) {
-        // Game should be active - activate the probable pitcher
-        const pitcherId = getPitcherByName(todaysGame.probablePitcher || "")
-        if (pitcherId) {
+    const checkSchedule = async () => {
+      try {
+        // First, perform morning check (9am EST) to get today's schedule
+        const morningResponse = await fetch('/api/baseball-savant?type=morning');
+        const morningData = await morningResponse.json();
+        
+        if (morningData.success && morningData.data?.todaysGames?.length > 0) {
+          const todaysGames = morningData.data.todaysGames;
+          
+          // Check if any games should be active based on time (20 minutes before start)
+          for (const game of todaysGames) {
+            const shouldActivate = shouldActivateGameTracking(game.time);
+            
+            if (shouldActivate) {
+              // Activate tracking for this game
+              setPitchers(prevPitchers =>
+                prevPitchers.map(pitcher => {
+                  // Check if this pitcher is the probable pitcher for today's game
+                  if (game.probable_pitcher && pitcher.name === game.probable_pitcher) {
+                    return {
+                      ...pitcher,
+                      gameStatus: "active",
+                      gameTime: game.time,
+                      opponent: game.home_away === 'home' ? `vs ${game.opponent}` : `at ${game.opponent}`,
+                      inning: 1,
+                      pitchCount: 0,
+                      liveData: {
+                        currentVelocity: "99.2",
+                        currentSpinRate: 2450,
+                        strikes: 0,
+                        balls: 0,
+                        outs: 0,
+                        lastPitch: {
+                          type: "4-Seam Fastball",
+                          velocity: "99.2",
+                          result: "Ball"
+                        }
+                      },
+                      pitches: []
+                    }
+                  }
+                  return pitcher
+                })
+              )
+              
+              // Set current game
+              setCurrentGame({
+                game_time: game.time,
+                home_team: game.home_away === 'home' ? 'Pirates' : game.opponent,
+                away_team: game.home_away === 'away' ? 'Pirates' : game.opponent,
+                status: 'Live'
+              })
+              
+              // Send game start notification
+              const message = `Game starting! Pirates ${game.home_away === 'home' ? 'vs' : 'at'} ${game.opponent} at ${game.time}`
+              toast.success(message)
+              
+              // Send SMS notification
+              fetch('/api/notify-sms', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message })
+              }).catch(console.error)
+              
+              break // Only activate the first game that should be active
+            }
+          }
+        }
+        
+        // Then check for live games
+        const liveResponse = await fetch('/api/baseball-savant?type=live');
+        const liveData = await liveResponse.json();
+        
+        if (liveData.success && liveData.data?.length > 0) {
+          const activeGame = liveData.data[0]; // Take the first live game
+          
+          // Update pitchers with real game data
           setPitchers(prevPitchers =>
             prevPitchers.map(pitcher => {
-              if (pitcher.id === pitcherId) {
+              // Find if this pitcher is active in the game
+              const isActive = pitcher.gameStatus === "active";
+              
+              if (isActive && pitcher.liveData) {
                 return {
                   ...pitcher,
-                  gameStatus: "active",
-                  gameTime: todaysGame.time,
-                  opponent: todaysGame.opponent,
-                  inning: 1,
-                  pitchCount: 0,
+                  inning: activeGame.inning || pitcher.inning,
                   liveData: {
-                    currentVelocity: "99.2",
-                    currentSpinRate: 2450,
-                    strikes: 0,
-                    balls: 0,
-                    outs: 0,
-                    lastPitch: {
-                      type: "4-Seam Fastball",
-                      velocity: "99.2",
-                      result: "Ball"
-                    }
-                  },
-                  pitches: []
+                    ...pitcher.liveData,
+                    outs: activeGame.outs_when_up || 0,
+                  }
                 }
               }
               return pitcher
             })
           )
           
-          setCurrentGame(todaysGame)
-          
-          // Send game start notification
-          const message = `Game started! Tracking ${todaysGame.probablePitcher} vs ${todaysGame.opponent}`
-          toast.success(message)
-          
-          // Send SMS notification
-          fetch('/api/notify-sms', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message })
-          }).catch(console.error)
+          setCurrentGame(activeGame)
         }
-      } else if (todaysGame && todaysGame.status === "completed") {
-        // Game is completed
-        setPitchers(prevPitchers =>
-          prevPitchers.map(pitcher => {
-            if (pitcher.gameStatus === "active") {
-              return { ...pitcher, gameStatus: "completed" as const }
-            }
-            return pitcher
-          })
-        )
-        setCurrentGame(null)
+      } catch (error) {
+        console.error('Error checking schedule:', error)
       }
     }
 
     // Check schedule immediately
     checkSchedule()
     
-    // Check every minute for game status changes
-    const interval = setInterval(checkSchedule, 60000)
+    // Check every 5 minutes for schedule updates
+    const interval = setInterval(checkSchedule, 300000) // 5 minutes
     
-    // Check for probable pitcher updates every hour
-    const checkProbablePitchers = async () => {
-      try {
-        const response = await fetch('/api/update-probable-pitchers', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        })
-        const data = await response.json()
-        if (data.success && data.updatedGames?.length > 0) {
-          console.log('Updated probable pitchers:', data.updatedGames)
-        }
-      } catch (error) {
-        console.error('Error checking probable pitchers:', error)
-      }
-    }
-    
-    // Check probable pitchers every hour
-    const probablePitcherInterval = setInterval(checkProbablePitchers, 60 * 60 * 1000)
-    
-    // Initial check for probable pitchers
-    checkProbablePitchers()
-
     return () => {
       clearInterval(interval)
-      clearInterval(probablePitcherInterval)
     }
   }, [])
 
+  // Helper function to check if game tracking should be activated (20 minutes before game time)
+  const shouldActivateGameTracking = (gameTime: string): boolean => {
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    const currentTime = currentHour * 60 + currentMinute;
+    
+    // Parse game time (assuming format like "7:05 PM" or "1:35 PM")
+    const timeMatch = gameTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
+    if (!timeMatch) return false;
+    
+    let hour = parseInt(timeMatch[1]);
+    const minute = parseInt(timeMatch[2]);
+    const period = timeMatch[3].toUpperCase();
+    
+    // Convert to 24-hour format
+    if (period === 'PM' && hour !== 12) hour += 12;
+    if (period === 'AM' && hour === 12) hour = 0;
+    
+    const gameTimeMinutes = hour * 60 + minute;
+    
+    // Activate tracking 20 minutes before game time and keep active for 4 hours
+    return currentTime >= gameTimeMinutes - 20 && currentTime <= gameTimeMinutes + 240;
+  }
+
   // Simulate real-time pitch updates for active pitchers
   useEffect(() => {
-    const interval = setInterval(() => {
-      setPitchers(prevPitchers =>
-        prevPitchers.map(pitcher => {
-          if (pitcher.gameStatus === "active" && pitcher.liveData) {
-            // Add a new pitch to the log
-            const lastPitchNum = pitcher.pitches?.length ? pitcher.pitches[pitcher.pitches.length - 1].pitchNum : 0;
-            const inning = pitcher.inning || 1;
-            const pitchTypes = ["4-Seam Fastball", "Slider", "Changeup", "Curveball"];
-            const results = ["Strike", "Ball", "Foul", "In Play"];
-            const type = pitchTypes[Math.floor(Math.random() * pitchTypes.length)];
-            const velocity = (98 + Math.random() * 3).toFixed(1);
-            const spinRate = Math.floor(2400 + Math.random() * 200);
-            const result = results[Math.floor(Math.random() * results.length)];
-            const newPitch = {
-              pitchNum: lastPitchNum + 1,
-              inning,
-              type,
-              velocity,
-              spinRate,
-              result,
-            };
-            return {
-              ...pitcher,
-              liveData: {
-                ...pitcher.liveData,
-                currentVelocity: velocity,
-                currentSpinRate: spinRate,
-                strikes: pitcher.liveData.strikes + (result === "Strike" ? 1 : 0),
-                balls: pitcher.liveData.balls + (result === "Ball" ? 1 : 0),
-                lastPitch: {
-                  type,
-                  velocity,
-                  result,
-                },
-              },
-              pitches: [...(pitcher.pitches || []), newPitch],
-            };
-          }
-          return pitcher;
-        })
-      );
-    }, 5000);
+    const interval = setInterval(async () => {
+      try {
+        // Fetch latest pitch data from Baseball Savant
+        const response = await fetch('/api/baseball-savant?type=pitches&game_pk=1');
+        const data = await response.json();
+        
+        if (data.success && data.data) {
+          setPitchers(prevPitchers =>
+            prevPitchers.map(pitcher => {
+              if (pitcher.gameStatus === "active") {
+                // Get pitches for this specific pitcher
+                const pitcherPitches = data.data.filter((pitch: any) => 
+                  pitch.pitcher_name === pitcher.name
+                );
+                
+                if (pitcherPitches.length > 0) {
+                  const latestPitch = pitcherPitches[pitcherPitches.length - 1];
+                  
+                  // Convert Baseball Savant data to our format
+                  const newPitch = {
+                    pitchNum: pitcherPitches.length,
+                    inning: latestPitch.inning || 1,
+                    type: latestPitch.pitch_type || "Unknown",
+                    velocity: latestPitch.release_speed?.toString() || "0",
+                    spinRate: latestPitch.release_spin_rate || 0,
+                    result: latestPitch.description || "Unknown",
+                  };
+                  
+                  // Update live data
+                  const updatedLiveData = {
+                    ...pitcher.liveData,
+                    currentVelocity: newPitch.velocity,
+                    currentSpinRate: newPitch.spinRate,
+                    strikes: latestPitch.strikes || 0,
+                    balls: latestPitch.balls || 0,
+                    outs: latestPitch.outs_when_up || 0,
+                    lastPitch: {
+                      type: newPitch.type,
+                      velocity: newPitch.velocity,
+                      result: newPitch.result,
+                    },
+                  };
+                  
+                  return {
+                    ...pitcher,
+                    liveData: updatedLiveData,
+                    pitches: [...(pitcher.pitches || []), newPitch],
+                    pitchCount: pitcherPitches.length,
+                    inning: latestPitch.inning || pitcher.inning,
+                  };
+                }
+              }
+              return pitcher;
+            })
+          );
+        }
+      } catch (error) {
+        console.error('Error fetching real-time pitch data:', error);
+      }
+    }, 5000); // Check every 5 seconds for new pitches
+    
     return () => clearInterval(interval);
   }, []);
 
