@@ -13,7 +13,7 @@ export function MainNav({ className, ...props }: React.HTMLAttributes<HTMLElemen
 
   return (
     <nav className={cn("flex items-center space-x-4 lg:space-x-6 justify-start flex-shrink-0 w-[160px]", className)} {...props}>
-      <Link href="/" className="flex flex-row items-center gap-2 min-w-0 flex-shrink-0">
+      <Link href="https://mlb-compliance-<hash>.vercel.app" className="flex flex-row items-center gap-2 min-w-0 flex-shrink-0">
         <PiratesLogo className="h-6 w-6 flex-shrink-0" />
         <span className="font-bold text-pirates-yellow flex-shrink-0">Pirates</span>
       </Link>
