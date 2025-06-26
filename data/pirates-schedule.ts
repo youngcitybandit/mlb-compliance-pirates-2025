@@ -825,7 +825,11 @@ export const piratesSchedule2025: GameSchedule[] = [
 // Helper function to get today's game
 export function getTodaysGame(): GameSchedule | null {
   const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD format
-  return piratesSchedule2025.find(game => game.date === today) || null
+  return (
+    piratesSchedule2025.find(
+      game => game.date === today && (game.status === "scheduled" || game.status === "active")
+    ) || null
+  )
 }
 
 // Helper function to get next scheduled game

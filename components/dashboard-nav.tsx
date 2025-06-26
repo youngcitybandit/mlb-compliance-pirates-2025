@@ -43,15 +43,15 @@ const navItems = [
     title: "Contracts",
     icon: FileText,
     children: [
-      {
-        title: "Contract Assessments",
-        href: "/contract-assessments",
-        icon: FileText,
-      },
-      {
-        title: "Contract Insurance",
-        href: "/contract-insurance",
-        icon: Shield,
+  {
+    title: "Contract Assessments",
+    href: "/contract-assessments",
+    icon: FileText,
+  },
+  {
+    title: "Contract Insurance",
+    href: "/contract-insurance",
+    icon: Shield,
       },
     ],
   },
@@ -59,30 +59,30 @@ const navItems = [
     title: "Team Management",
     icon: Users,
     children: [
-      {
-        title: "Injured List",
-        href: "/injuries",
-        icon: AlertCircle,
-      },
-      {
-        title: "Load Management",
-        href: "/roster-management",
-        icon: Brain,
-      },
-      {
-        title: "Recovery Monitoring",
-        href: "/recovery-monitoring",
-        icon: Heart,
-      },
-      {
-        title: "Statistical Analysis",
-        href: "/statistical-analysis",
-        icon: TrendingUp,
-      },
-      {
-        title: "Statistical Analysis",
-        href: "/statistical-analysis-down",
-        icon: TrendingDown,
+  {
+    title: "Injured List",
+    href: "/injuries",
+    icon: AlertCircle,
+  },
+  {
+    title: "Load Management",
+    href: "/roster-management",
+    icon: Brain,
+  },
+  {
+    title: "Recovery Monitoring",
+    href: "/recovery-monitoring",
+    icon: Heart,
+  },
+  {
+    title: "Statistical Analysis",
+    href: "/statistical-analysis",
+    icon: TrendingUp,
+  },
+  {
+    title: "Statistical Analysis",
+    href: "/statistical-analysis-down",
+    icon: TrendingDown,
       },
     ],
   },
@@ -206,20 +206,20 @@ export function DashboardNav({ className, items = navItems, ...props }: NavProps
         }
 
         return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={cn(
-              buttonVariants({ variant: "ghost" }),
+        <Link
+          key={item.href}
+          href={item.href}
+          className={cn(
+            buttonVariants({ variant: "ghost" }),
               isActive(item.href)
-                ? "bg-pirates-yellow text-pirates-black hover:bg-pirates-yellow/90 hover:text-pirates-black"
-                : "hover:bg-pirates-black/50 hover:text-white",
-              "justify-start",
-            )}
-          >
-            <item.icon className="mr-2 h-4 w-4" />
-            {item.title}
-          </Link>
+              ? "bg-pirates-yellow text-pirates-black hover:bg-pirates-yellow/90 hover:text-pirates-black"
+              : "hover:bg-pirates-black/50 hover:text-white",
+            "justify-start",
+          )}
+        >
+          <item.icon className="mr-2 h-4 w-4" />
+          {item.title}
+        </Link>
         )
       })}
     </nav>

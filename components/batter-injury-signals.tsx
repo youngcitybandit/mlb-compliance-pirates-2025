@@ -1,3 +1,5 @@
+"use client"
+
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { AlertTriangle, Info, TrendingDown, Clock, MessageSquare, ShieldOff } from "lucide-react"
 
@@ -80,7 +82,7 @@ export function BatterInjurySignals() {
             </li>
             <li>Day-to-day players with &gt;2 missed games and no IL &rarr; system gap (undeclared injuries).</li>
             <li>
-              Quotes like: "we’re just being cautious" or "he’ll be fine tomorrow" often precede delayed IL.
+              Quotes like: "we're just being cautious" or "he'll be fine tomorrow" often precede delayed IL.
               <br />
               <span className="text-xs text-muted-foreground">
                 Reflex Hook: NLP scan of media + beat reports &rarr; injury detection without official logs.
@@ -105,7 +107,7 @@ export function BatterInjurySignals() {
             </li>
             <li>
               <strong>Byron Buxton (2023):</strong> Chronic knee issue managed by hiding him at DH all season — only
-              IL’d late for a different injury. Surgery needed but not disclosed.
+              IL'd late for a different injury. Surgery needed but not disclosed.
               <br />
               <span className="text-xs text-muted-foreground">
                 Audit Insight: These show systemic underreporting + misalignment between medical reality and IL action.
@@ -152,7 +154,7 @@ export function BatterInjurySignals() {
                 <tr className="border-b">
                   <td className="p-3">Return_At_Min_Stint</td>
                   <td className="p-3">Player returns exactly on Day 10/15, multiple times</td>
-                  <td className="p-3">Flag for “phantom IL” / roster cycling</td>
+                  <td className="p-3">Flag for "phantom IL" / roster cycling</td>
                 </tr>
                 <tr className="border-b">
                   <td className="p-3">Slump_Before_IL</td>
@@ -161,7 +163,7 @@ export function BatterInjurySignals() {
                 </tr>
                 <tr className="border-b">
                   <td className="p-3">Repeat_Vague_DIAG</td>
-                  <td className="p-3">Same player, same vague IL reason twice (e.g. “tightness”)</td>
+                  <td className="p-3">Same player, same vague IL reason twice (e.g. "tightness")</td>
                   <td className="p-3">Flag for chronic mislabeling</td>
                 </tr>
                 <tr>
