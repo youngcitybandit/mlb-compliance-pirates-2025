@@ -44,7 +44,38 @@ interface MorningCheckData {
   nextCheckTime: string;
   systemStatus: 'active' | 'standby';
 }
+// Add at the top-level scope (above or below your other helpers)
+let previousGameStatus: { [gamePk: string]: string | null } = {};
 
+/**
+ * Polls the MLB StatsAPI live feed for the given gamePk,
+ * detects a transition from "Delayed" to "In Progress",
+ * and returns current game status and latest pitches.
+ */
+async function pollGameStatusAndHandleResumption(gamePk: string) {
+  const statsApiUrl = `https://statsapi.mlb.com/api/v1.1/game/${gamePk}/feed/live`;
+  const res = await fetch(statsApiUrl);
+  if (!res.ok) throw new Error('Failed to fetch MLB game status');
+  const data = await res.json();
+
+  const status = data?.gameData?.status?.detailedState;
+  const currentPlay = data?.liveData?.plays?.currentPlay;
+  const pitches = currentPlay?.playEvents?.filter((e: any) => e.type === 'pitch') || [];
+
+  // Detect Delayed → In Progress transition
+  if (
+    previousGameStatus[gamePk] === 'Delayed' &&
+    status === 'In Progress'
+  ) {
+    // Trigger your pitch tracking logic here!
+    console.log(`Game ${gamePk} resumed! Pitch tracking restarted.`);
+    // Optionally: await fetchPitchData(gamePk); // Or your actual tracking function
+  }
+
+  previousGameStatus[gamePk] = status;
+
+  return { status, pitches };
+}
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -75,6 +106,24 @@ export async function GET(req: NextRequest) {
     }
 
     if (checkType === 'live') {
+  if (gamePk) {
+    const liveData = await pollGameStatusAndHandleResumption(gamePk);
+    return NextResponse.json({
+      success: true,
+      type: 'live',
+      data: liveData,
+      scrapedAt: new Date().toISOString()
+    });
+  } else {
+    const liveGames = await getLiveGames(gameDate);
+    return NextResponse.json({
+      success: true,
+      type: 'live',
+      data: liveGames,
+      scrapedAt: new Date().toISOString()
+    });
+  }
+}
       // Check if any games are currently live
       const liveGames = await getLiveGames(gameDate);
       return NextResponse.json({
